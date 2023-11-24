@@ -33,7 +33,7 @@ class Block(nn.Module):
         self.time_embedding = SinusoidalPositionEmbeddings(time_embedding_dims)
         self.labels = labels
         if labels:
-            self.label_embedding = nn.Embedding(1,)
+            self.label_embedding = nn.Embedding(1, 8)
             self.label_mlp = nn.Linear(1, channels_out)
 
         self.downsample = downsample
