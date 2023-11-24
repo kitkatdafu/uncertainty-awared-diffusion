@@ -1,0 +1,17 @@
+name: cs839
+channels:
+  - defaults
+dependencies:
+  - pytorch::pytorch
+  - torchaudio
+  - torchvision
+  - jupyterlab
+  - diffusers
+  - ipywidgets
+  - transformers
+  - accelerate
+  - matplotlib
+  - opencv
+  - liblapack
+  - tqdm
+prefix: /Users/yichen/miniconda3/envs/cs839
