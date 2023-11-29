@@ -1,0 +1,208 @@
+{
+    "os": "Linux-6.5.6-76060506-generic-x86_64-with-glibc2.35",
+    "python": "3.11.5",
+    "heartbeatAt": "2023-11-28T03:34:45.696434",
+    "startedAt": "2023-11-28T03:34:45.253235",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/reid/Documents/uncertainty-awared-diffusion/try.py",
+    "codePathLocal": "try.py",
+    "codePath": "try.py",
+    "git": {
+        "remote": "https://github.com/kitkatdafu/uncertainty-awared-diffusion.git",
+        "commit": "006c04fec506f06c159ebd1a246c68d7a2575c2b"
+    },
+    "email": null,
+    "root": "/home/reid/Documents/uncertainty-awared-diffusion",
+    "host": "ramya-rtx4090-1",
+    "username": "reid",
+    "executable": "/home/reid/miniconda3/envs/cs839/bin/python",
+    "cpu_count": 24,
+    "cpu_count_logical": 32,
+    "cpu_freq": {
+        "current": 1.0065000000000004,
+        "min": 800.0,
+        "max": 4900.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 1.823,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 1.816,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 1.399,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 1.546,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 1.621,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 5500.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.799,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 1.287,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        },
+        {
+            "current": 0.8,
+            "min": 800.0,
+            "max": 4300.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 870.2659759521484,
+            "used": 353.3459930419922
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 4090",
+            "memory_total": 25757220864
+        }
+    ],
+    "memory": {
+        "total": 31.174659729003906
+    }
+}

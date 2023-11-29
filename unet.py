@@ -1,6 +1,54 @@
-from torch import nn
 import math
 import torch
+import torch.nn as nn
+import torchvision.transforms.functional as TF
+
+
+class Block(nn.Module):
+    def __init__(self, in_channels, out_channels, time_emb_dim, label):
+        super().__init__()
+
+        if label:
+            self.label_embedding = nn.Embedding(1, 8)
+            self.label_mlp = nn.Linear(1, out_channels)
+
+        self.time_mlp = nn.Linear(time_emb_dim, out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.Dropout2d(0.03),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x, t, label=None):
+        h = self.conv1(x)
+        # Time embedding
+        time_emb = self.relu(self.time_mlp(t))
+        # Extend last 2 dimensions
+        time_emb = time_emb[(...,) + (None,) * 2]
+        # Add time channel
+        h = h + time_emb
+        if label:
+            label_emb = self.relu(self.label_mlp(label))
+            label_emb = label_emb[(...,) + (None,) * 2]
+            h = h + label_emb
+        # Second Conv
+        h = self.conv2(h)
+        return h
+
 
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):
@@ -17,101 +65,68 @@ class SinusoidalPositionEmbeddings(nn.Module):
         return embeddings
 
 
-class Block(nn.Module):
-    def __init__(
-        self,
-        channels_in,
-        channels_out,
-        time_embedding_dims,
-        labels,
-        num_filters=3,
-        downsample=True,
-    ):
-        super().__init__()
-
-        self.time_embedding_dims = time_embedding_dims
-        self.time_embedding = SinusoidalPositionEmbeddings(time_embedding_dims)
-        self.labels = labels
-        if labels:
-            self.label_embedding = nn.Embedding(1, 8)
-            self.label_mlp = nn.Linear(1, channels_out)
-
-        self.downsample = downsample
-
-        if downsample:
-            self.conv1 = nn.Conv2d(channels_in, channels_out, num_filters, padding=1)
-            self.final = nn.Conv2d(channels_out, channels_out, 4, 2, 1)
-        else:
-            self.conv1 = nn.Conv2d(
-                2 * channels_in, channels_out, num_filters, padding=1
-            )
-            self.final = nn.ConvTranspose2d(channels_out, channels_out, 4, 2, 1)
-
-        self.bnorm1 = nn.BatchNorm2d(channels_out)
-        self.bnorm2 = nn.BatchNorm2d(channels_out)
-
-        self.conv2 = nn.Conv2d(channels_out, channels_out, 3, padding=1)
-        self.time_mlp = nn.Linear(time_embedding_dims, channels_out)
-        self.relu = nn.ReLU()
-
-    def forward(self, x, t, **kwargs):
-        o = self.bnorm1(self.relu(self.conv1(x)))
-        o_time = self.relu(self.time_mlp(self.time_embedding(t)))
-        o = o + o_time[(...,) + (None,) * 2]
-        if self.labels:
-            label = kwargs.get("labels")
-            o_label = self.relu(self.label_mlp(label))
-            o = o + o_label[(...,) + (None,) * 2]
-
-        o = self.bnorm2(self.relu(self.conv2(o)))
-
-        return self.final(o)
-
-
 class UNet(nn.Module):
     def __init__(
         self,
-        img_channels=3,
-        time_embedding_dims=128,
-        labels=False,
-        sequence_channels=(64, 128, 256, 512, 1024),
+        input_channels=3,
+        output_channels=3,
+        channels=(64, 128, 256, 512),
+        time_emb_dim=32,
+        label=None
     ):
         super().__init__()
-        self.time_embedding_dims = time_embedding_dims
-        sequence_channels_rev = reversed(sequence_channels)
 
-        self.downsampling = nn.ModuleList(
-            [
-                Block(channels_in, channels_out, time_embedding_dims, labels)
-                for channels_in, channels_out in zip(
-                    sequence_channels, sequence_channels[1:]
-                )
-            ]
+        # Time embedding
+        self.time_mlp = nn.Sequential(
+            SinusoidalPositionEmbeddings(time_emb_dim),
+            nn.Linear(time_emb_dim, time_emb_dim),
+            nn.ReLU(),
         )
-        self.upsampling = nn.ModuleList(
-            [
-                Block(
-                    channels_in,
-                    channels_out,
-                    time_embedding_dims,
-                    labels,
-                    downsample=False,
-                )
-                for channels_in, channels_out in zip(
-                    sequence_channels[::-1], sequence_channels[::-1][1:]
-                )
-            ]
-        )
-        self.conv1 = nn.Conv2d(img_channels, sequence_channels[0], 3, padding=1)
-        self.conv2 = nn.Conv2d(sequence_channels[0], img_channels, 1)
 
-    def forward(self, x, t, **kwargs):
-        residuals = []
-        o = self.conv1(x)
-        for ds in self.downsampling:
-            o = ds(o, t, **kwargs)
-            residuals.append(o)
-        for us, res in zip(self.upsampling, reversed(residuals)):
-            o = us(torch.cat((o, res), dim=1), t, **kwargs)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        return self.conv2(o)
+        # Downsample
+        self.downs = nn.ModuleList()
+        for channel in channels:
+            self.downs.append(Block(input_channels, channel, time_emb_dim, label))
+            input_channels = channel
+
+        # Bottleneck
+        self.bottleneck = Block(channels[-1], channels[-1] * 2, time_emb_dim, label)
+
+        # Upsample
+        self.ups = nn.ModuleList()
+        for channel in reversed(channels):
+            self.ups.append(
+                nn.ConvTranspose2d(channel * 2, channel, kernel_size=2, stride=2)
+            )
+            self.ups.append(Block(channel * 2, channel, time_emb_dim, label))
+
+        self.output = nn.Conv2d(channels[0], output_channels, kernel_size=1)
+
+    def forward(self, x, timestep, label=None):
+        # Embedd time
+        t = self.time_mlp(timestep)
+
+        # Unet
+        residual_inputs = []
+        for down in self.downs:
+            x = down(x, t, label)
+            residual_inputs.append(x)
+            x = self.pool(x)
+
+        x = self.bottleneck(x, t)
+        for i in range(0, len(self.ups), 2):
+            conv_t = self.ups[i]
+            up = self.ups[i + 1]
+            residual_x = residual_inputs.pop()
+
+            x = conv_t(x)
+
+            if x.shape != residual_x.shape:
+                x = TF.resize(x, size=residual_x.shape[2:], antialias=True)
+
+            x = torch.cat((x, residual_x), dim=1)
+            x = up(x, t, label)
+
+        return self.output(x)
