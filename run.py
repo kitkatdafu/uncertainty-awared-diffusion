@@ -26,7 +26,7 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
             loss.backward()
             batch_loss.append(loss.item())
             optimizer.step()
-            print(f'size of record_latent_features: {sys.getsizeof(unet.record_latent_features)/1024/1024} MB')
+            print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
         training_loss = np.mean(batch_loss)
 
         unet.eval()
@@ -45,7 +45,7 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
 
         torch.save(unet.state_dict(), f"weight/parameters.pkl")
         torch.save(unet.record_latent_features, "weight/record_latent_Features.pt")
-        print(f'size of record_latent_features: {sys.getsizeof(unet.record_latent_features)/1024/1024} MB')
+        print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
 
 
 def cla():
