@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from unet import UNet
 from model import DiffusionModel
 from util import get_transforms, get_dataset, get_image_size, get_dataloader
+import sys
 
 
 def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, testloader, device, batch_size):
@@ -25,6 +26,7 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
             loss.backward()
             batch_loss.append(loss.item())
             optimizer.step()
+            print(f'size of record_latent_features: {sys.getsizeof(unet.record_latent_features)/1024/1024} MB')
         training_loss = np.mean(batch_loss)
 
         unet.eval()
@@ -42,6 +44,8 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
         print(f"Training Loss: {training_loss}, Testing Loss: {testing_loss}")
 
         torch.save(unet.state_dict(), f"weight/parameters.pkl")
+        torch.save(unet.record_latent_features, "weight/record_latent_Features.pt")
+        print(f'size of record_latent_features: {sys.getsizeof(unet.record_latent_features)/1024/1024} MB')
 
 
 def cla():
@@ -67,7 +71,7 @@ def main():
         config=args
     )
     
-    unet = UNet(input_channels=1, output_channels=1).to(args.device)
+    unet = UNet(input_channels=1, output_channels=1, record_latent=True).to(args.device)
     optimizer = torch.optim.AdamW(unet.parameters(), lr=args.learning_rate)
     loss_fn = torch.nn.MSELoss()
     diffusion_model = DiffusionModel(timesteps=args.timesteps)

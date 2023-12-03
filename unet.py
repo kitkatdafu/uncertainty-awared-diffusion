@@ -72,9 +72,17 @@ class UNet(nn.Module):
         output_channels=3,
         channels=(64, 128, 256, 512),
         time_emb_dim=32,
-        label=None
+        label=None,
+        record_latent=False,
+        record_timesteps=(1, 5, 10, 100, 200)
     ):
         super().__init__()
+
+        # latent recording
+        self.record_latent = record_latent
+        self.record_timesteps = record_timesteps
+        if self.record_latent:
+            self.record_latent_features = { key:[] for key in record_timesteps }
 
         # Time embedding
         self.time_mlp = nn.Sequential(
@@ -114,9 +122,14 @@ class UNet(nn.Module):
             x = down(x, t, label)
             residual_inputs.append(x)
             x = self.pool(x)
-        
-        # record the bottleneck latent features to do OOD detection
-        # only record the 
+
+        # print(timestep)
+        # record the bottleneck latent features to detect OOD samples
+        # only record a few timesteps, since first few steps already contain enough information
+        if self.record_latent:
+            for i, _t in enumerate(timestep):
+                if _t in self.record_timesteps:
+                    self.record_latent_features[_t.item()].append(x[i].detach().cpu().numpy())
 
         x = self.bottleneck(x, t)
         for i in range(0, len(self.ups), 2):
