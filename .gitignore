@@ -163,3 +163,5 @@ weights/*
 dataset/
 .ipynb_checkpoints/
 .code/
+wandb/
+weight/

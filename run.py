@@ -39,6 +39,7 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
         testing_loss = np.mean(batch_loss)
 
         wandb.log({'Training Loss': training_loss, 'Testing Loss': testing_loss})
+        print(f"Training Loss: {training_loss}, Testing Loss: {testing_loss}")
 
         torch.save(unet.state_dict(), f"weight/parameters.pkl")
 

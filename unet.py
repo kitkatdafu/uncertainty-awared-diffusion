@@ -114,6 +114,9 @@ class UNet(nn.Module):
             x = down(x, t, label)
             residual_inputs.append(x)
             x = self.pool(x)
+        
+        # record the bottleneck latent features to do OOD detection
+        # only record the 
 
         x = self.bottleneck(x, t)
         for i in range(0, len(self.ups), 2):
