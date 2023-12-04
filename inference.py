@@ -1,53 +1,74 @@
 import torch
-import torchvision
-import numpy as np
+import pickle
+import argparse
+from collections import defaultdict
+from util import get_image_size
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from unet import UNet
 from model import DiffusionModel
 from util import get_transforms
-from visdom import Visdom
 
 
-def infer(unet, diffusion_model, device, viz, T, reverse_transform, n):
+def infer(unet, diffusion_model, device, T, reverse_transform, n):
 
-    unet.train()
-    sd = []
+
+    _t = None
+    i = None
+    
+
+    bottleneck = defaultdict(list)
+
+    unet.eval()
+    unet.bottleneck.register_forward_hook(lambda x, y, output: bottleneck[_t, i].append(output.cpu().numpy()))
+
+    samples = defaultdict(list)
+
     with torch.no_grad():
-        for _ in range(n):
-            samples = []
-            image = torch.randn((1, 1, 32, 32)).to(device)
+        image = torch.randn((n, 1, 28, 28)).to(device)
+
+        for _t in range(T):
+            torch.manual_seed(_t)
             for i in reversed(range(diffusion_model.timesteps)):
-                samples_at_step = []
-                for _ in range(T):
-                    image = diffusion_model.backward(image, torch.full((1, ), i, dtype=torch.long, device=device), unet)
-                    samples_at_step.append(image)
-                samples_at_step = torch.cat(samples_at_step, dim=0)
-                mean_sample = samples_at_step.mean(dim=0)
-                sd_sample = samples_at_step.std(dim=0).mean()
-                if i % 50 == 0:
-                    samples.append(reverse_transform(mean_sample).cpu())
-            viz.images(samples)
-            sd.append(sd_sample.cpu().item())
-    viz.histogram(X=sd)    
+                if i >= diffusion_model.timesteps - 0.1 * diffusion_model.timesteps:
+                    for dropout in unet.dropouts:
+                        dropout.train() 
+                else:
+                    for dropout in unet.dropouts:
+                        dropout.eval() 
+                image = diffusion_model.backward(image, torch.full((1, ), i, dtype=torch.long, device=device), unet) + 0.001
+                samples[i].append(image.cpu().numpy())
+    
+    with open('pickels/results.pkl', 'wb') as f:
+        pickle.dump(samples, f)
+
+    with open('pickels/bottlenecks.pkl', 'wb') as f:
+        pickle.dump(bottleneck, f)
+
+
+            
+def cla():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps'])
+    parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST'])
+    parser.add_argument('--timesteps', type=int, default=300)
+    parser.add_argument('--N', type=int, default=1, help='number of images generated')
+    parser.add_argument('--T', type=int, default=10, help='number of resamples')
+    return parser.parse_args()
+
 
 
 def main():
-    device = 'cuda'
-    TIMESTEPS = 300
-    IMAGE_SIZE = (28, 28)
-    N = 2
-    T = 2
+    torch.manual_seed(1)
+    args = cla()
+    image_size = get_image_size(args.dataset)
 
-    viz = Visdom()
+    _, reverse_transform = get_transforms(image_size=image_size)
 
-    _, reverse_transform = get_transforms(image_size=IMAGE_SIZE)
+    unet = UNet(input_channels=1, output_channels=1).to(args.device)
+    unet.load_state_dict(torch.load('weights/parameters.pkl'))
+    diffusion_model = DiffusionModel(timesteps=args.timesteps)
 
-    unet = UNet(input_channels=1, output_channels=1).to(device)
-    unet.load_state_dict(torch.load('weight/parameters.pkl'))
-    diffusion_model = DiffusionModel(timesteps=TIMESTEPS)
-
-    infer(unet, diffusion_model, device, viz, T, reverse_transform, N)
+    infer(unet, diffusion_model, args.device, args.T, reverse_transform, args.N)
 
     
 
