@@ -27,20 +27,22 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
             optimizer.step()
         training_loss = np.mean(batch_loss)
 
+    
         unet.eval()
         batch_loss = []
-        for batch, _ in testloader:
-            t = torch.randint(0, diffusion_model.timesteps, (batch_size,)).long().to(device)
-            batch = batch.to(device)
-            batch_noisy, noise = diffusion_model.forward(batch, t, device) 
-            predicted_noise = unet(batch_noisy, t)
-            loss = loss_fn(noise, predicted_noise)
-            batch_loss.append(loss.item())
+        with torch.no_grad():
+            for batch, _ in testloader:
+                t = torch.randint(0, diffusion_model.timesteps, (batch_size,)).long().to(device)
+                batch = batch.to(device)
+                batch_noisy, noise = diffusion_model.forward(batch, t, device) 
+                predicted_noise = unet(batch_noisy, t)
+                loss = loss_fn(noise, predicted_noise)
+                batch_loss.append(loss.item())
         testing_loss = np.mean(batch_loss)
 
         wandb.log({'Training Loss': training_loss, 'Testing Loss': testing_loss})
 
-        torch.save(unet.state_dict(), f"weight/parameters.pkl")
+        torch.save(unet.state_dict(), f"weights/parameters.pkl")
 
 
 def cla():

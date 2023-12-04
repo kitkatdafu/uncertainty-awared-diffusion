@@ -26,9 +26,10 @@ class Block(nn.Module):
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
         )
+        self.dropout = nn.Dropout2d(0.03)
         self.conv2 = nn.Sequential(
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.Dropout2d(0.03),
+            self.dropout,
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
         )
@@ -103,6 +104,7 @@ class UNet(nn.Module):
             self.ups.append(Block(channel * 2, channel, time_emb_dim, label))
 
         self.output = nn.Conv2d(channels[0], output_channels, kernel_size=1)
+        self.dropouts = [down.dropout for down in self.downs] + [up.dropout for up in self.ups if 'dropout' in up.__dict__] + [self.bottleneck.dropout]
 
     def forward(self, x, timestep, label=None):
         # Embedd time
