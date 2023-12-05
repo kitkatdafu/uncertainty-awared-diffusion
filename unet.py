@@ -34,6 +34,7 @@ class Block(nn.Module):
         )
 
     def forward(self, x, t, label=None):
+        # print(x.shape)
         h = self.conv1(x)
         # Time embedding
         time_emb = self.relu(self.time_mlp(t))
@@ -73,16 +74,15 @@ class UNet(nn.Module):
         channels=(64, 128, 256, 512),
         time_emb_dim=32,
         label=None,
-        record_latent=False,
-        record_timesteps=(1, 5, 10, 100, 200)
     ):
         super().__init__()
 
         # latent recording
-        self.record_latent = record_latent
-        self.record_timesteps = record_timesteps
-        if self.record_latent:
-            self.record_latent_features = { key:[] for key in record_timesteps }
+        self.record_latent = False # activate only when we call _record_latent_features()
+        # self.record_timesteps = record_timesteps
+        # if self.record_latent:
+        #     self.record_latent_features = { key:[] for key in record_timesteps }
+        self.ood_detection_indicator = False
 
         # Time embedding
         self.time_mlp = nn.Sequential(
@@ -112,24 +112,46 @@ class UNet(nn.Module):
 
         self.output = nn.Conv2d(channels[0], output_channels, kernel_size=1)
 
+    def _record_latent_features(self, record_timesteps):
+        # latent recording
+        self.record_latent = True
+        self.record_timesteps = record_timesteps
+        if self.record_latent:
+            self.record_latent_features = { key:[] for key in record_timesteps }
+
+    def _stop_record_latent_features(self):
+        self.record_latent = False
+
+    def _start_ood_detection(self, ood_detector, detect_timesteps):
+        self.detect_timesteps = detect_timesteps
+        self.ood_detection_indicator = True
+        self.ood_detector = ood_detector
+        self.ood_detect_res = []
+
     def forward(self, x, timestep, label=None):
         # Embedd time
         t = self.time_mlp(timestep)
-
         # Unet
         residual_inputs = []
         for down in self.downs:
             x = down(x, t, label)
             residual_inputs.append(x)
             x = self.pool(x)
-
+        # print(x.shape)
         # print(timestep)
-        # record the bottleneck latent features to detect OOD samples
+        # record the bottleneck latent features to detect OOD samples (only in training mode)
         # only record a few timesteps, since first few steps already contain enough information
         if self.record_latent:
             for i, _t in enumerate(timestep):
                 if _t in self.record_timesteps:
                     self.record_latent_features[_t.item()].append(x[i].detach().cpu().numpy())
+        
+        if self.ood_detection_indicator:
+            for i, _t in enumerate(timestep):
+                if _t in self.detect_timesteps:
+                    # print(x[i].detach().cpu().numpy().reshape(1,-1).shape)
+                    ood_pred, max_dist = self.ood_detector.detect_l2_distance_ood(x[i].detach().cpu().numpy().reshape(1,-1), _t.item())
+                    self.ood_detect_res.append((ood_pred, max_dist))
 
         x = self.bottleneck(x, t)
         for i in range(0, len(self.ups), 2):

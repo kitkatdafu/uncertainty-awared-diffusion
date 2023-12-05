@@ -26,7 +26,7 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
             loss.backward()
             batch_loss.append(loss.item())
             optimizer.step()
-            print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
+            # print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
         training_loss = np.mean(batch_loss)
 
         unet.eval()
@@ -44,8 +44,19 @@ def train(no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, tes
         print(f"Training Loss: {training_loss}, Testing Loss: {testing_loss}")
 
         torch.save(unet.state_dict(), f"weight/parameters.pkl")
-        torch.save(unet.record_latent_features, "weight/record_latent_Features.pt")
-        print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
+
+def run_latent_all_samples(unet, trainloader, diffusion_model, device, batch_size, record_timesteps):
+    unet.eval()
+    for timestep in record_timesteps:
+        for batch, _ in trainloader:
+            t = torch.full((batch_size, ), timestep).to(device)
+            batch = batch.to(device)
+            batch_noisy, noise = diffusion_model.forward(batch, t, device) 
+            predicted_noise = unet(batch_noisy, t)
+            print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
+        ...
+    torch.save(unet.record_latent_features, "weight/record_latent_features.pt")
+    print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
 
 
 def cla():
@@ -71,12 +82,17 @@ def main():
         config=args
     )
     
-    unet = UNet(input_channels=1, output_channels=1, record_latent=True).to(args.device)
+    unet = UNet(input_channels=1, output_channels=1).to(args.device)
     optimizer = torch.optim.AdamW(unet.parameters(), lr=args.learning_rate)
     loss_fn = torch.nn.MSELoss()
     diffusion_model = DiffusionModel(timesteps=args.timesteps)
 
     train(args.no_epochs, unet, optimizer, loss_fn, diffusion_model, trainloader, testloader, args.device, args.batch_size)
+
+    # after training, record the latents of all training samples
+    record_timesteps = (0,1,5,10,25,50,100,200,299)
+    unet._record_latent_features(record_timesteps=record_timesteps)
+    run_latent_all_samples(unet, trainloader, diffusion_model, args.device, args.batch_size, record_timesteps)
 
     wandb.finish()
 
