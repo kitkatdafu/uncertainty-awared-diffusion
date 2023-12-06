@@ -5,7 +5,7 @@ import torchvision
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from unet import UNet
+# from unet import UNet
 from model import DiffusionModel
 from util import get_transforms, get_dataset, get_image_size, get_dataloader
 import sys
@@ -13,6 +13,7 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import os
 import pickle
+from unet_power import UNet
 
 
 def flatten_features(record_latent_Features):
@@ -90,7 +91,7 @@ class pca_ood_detector:
 
 def infer_ood(unet, diffusion_model, ood_detector, device, reverse_transform, n_imgs):
 
-    detect_timesteps = (0,1,5,10,25,50,100,200,299)
+    detect_timesteps = (0,199,399,599,799,999)
     unet.eval()
     unet._start_ood_detection(ood_detector, detect_timesteps)
     
@@ -99,7 +100,7 @@ def infer_ood(unet, diffusion_model, ood_detector, device, reverse_transform, n_
         tqdmr = tqdm(range(n_imgs))
         for _ in tqdmr:
             samples = []
-            image = torch.randn((1, 1, 28, 28)).to(device)
+            image = torch.randn((1, 1, 32, 32)).to(device)
             for i in reversed(range(diffusion_model.timesteps)):
                 image = diffusion_model.backward(image, torch.full((1, ), i, dtype=torch.long, device=device), unet)
                 if i % 50 == 0:
@@ -129,14 +130,15 @@ def main():
     image_size = get_image_size(args.dataset)
     _, reverse_transform = get_transforms(image_size=image_size)
 
-    unet = UNet(input_channels=1, output_channels=1).to(args.device)
-    unet.load_state_dict(torch.load('weight/parameters.pkl'))
+    unet = UNet(T=args.timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, 
+                 dropout=0.1).to(args.device)
+    unet.load_state_dict(torch.load('weight/parameters_power.pkl'))
     diffusion_model = DiffusionModel(timesteps=args.timesteps)
 
-    record_latent_features = torch.load('./weight/record_latent_features.pt')
+    record_latent_features = torch.load('./weight/record_latent_features_power_999_100.pt')
 
-    if os.path.exists(f'./results/stored_detector__{args.thd}.pkl'):
-        with open(f'./results/stored_detector__{args.thd}.pkl', 'rb') as file:
+    if os.path.exists(f'./results/stored_detector_power_999_100_{args.thd}.pkl'):
+        with open(f'./results/stored_detector_power_999_100_{args.thd}.pkl', 'rb') as file:
             loaded_object = pickle.load(file)
         # detector = torch.load(f'./results/stored_detector_{args.thd}.pt')
     else:
@@ -144,14 +146,14 @@ def main():
         detector.pca_analyze()
         detector.calc_avg_distance()
         detector.set_threshold(args.thd)
-        with open(f'./results/stored_detector__{args.thd}.pkl', 'wb') as file:
+        with open(f'./results/stored_detector_power_999_100_{args.thd}.pkl', 'wb') as file:
             pickle.dump(detector, file)
         # torch.save(detector, f'./results/stored_detector_{args.thd}.pt')
     
     infer_samples = infer_ood(unet, diffusion_model, detector, args.device, reverse_transform,args.n_imgs)
     ood_detect_result = unet.ood_detect_res
 
-    torch.save((infer_samples, ood_detect_result), f'./results/test_ood_detection_{args.thd}.pt')
+    torch.save((infer_samples, ood_detect_result), f'./results/test_ood_detection_power_999_100_{args.thd}.pt')
 
 if __name__ == '__main__':
     main()
