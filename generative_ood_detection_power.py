@@ -100,7 +100,7 @@ def infer_ood(unet, diffusion_model, ood_detector, device, reverse_transform, n_
         tqdmr = tqdm(range(n_imgs))
         for _ in tqdmr:
             samples = []
-            image = torch.randn((1, 1, 32, 32)).to(device)
+            image = torch.randn((1, 1, 32, 32)).to(device) * 2
             for i in reversed(range(diffusion_model.timesteps)):
                 image = diffusion_model.backward(image, torch.full((1, ), i, dtype=torch.long, device=device), unet)
                 if i % 50 == 0:
