@@ -39,6 +39,8 @@ def get_ramya():
 def get_image_size(name):
     if name == 'MNIST':
         return (28, 28)
+    elif name == 'CIFAR10':
+        return (3, 32, 32)
     else:
         raise ValueError('No such dataset')
     
@@ -47,6 +49,9 @@ def get_dataset(name, transform):
     if name == 'MNIST':
         trainset = torchvision.datasets.MNIST(root='./dataset', train=True, download=True, transform=transform)
         testset = torchvision.datasets.MNIST(root='./dataset', train=False, download=True, transform=transform)
+    elif name == 'CIFAR10':
+        trainset = torchvision.datasets.CIFAR10(root='./dataset', train=True, download=True, transform=transform)
+        testset = torchvision.datasets.CIFAR10(root='./dataset', train=False, download=True, transform=transform)
     else:
         raise ValueError('No such dataset')
     return trainset, testset

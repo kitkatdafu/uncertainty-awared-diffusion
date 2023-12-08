@@ -155,7 +155,7 @@ class ResBlock(nn.Module):  # resblock with time embedding
         return h
     
 class UNet(nn.Module):
-    def __init__(self, T, ch, ch_mult, attn, num_res_blocks, dropout):
+    def __init__(self, T, ch, ch_mult, attn, num_res_blocks, dropout, in_ch=1):
         super().__init__()
         assert all([i < len(ch_mult) for i in attn]), 'attn index out of bound'
 
@@ -164,7 +164,7 @@ class UNet(nn.Module):
 
         tdim = ch * 4
         self.time_embedding = TimeEmbedding(T, ch, tdim)
-        self.head = nn.Conv2d(1, ch, kernel_size=3, stride=1, padding=1)
+        self.head = nn.Conv2d(in_ch, ch, kernel_size=3, stride=1, padding=1)
         self.downblocks = nn.ModuleList()
         chs = [ch] # record output channel when downsample for upsample
         now_ch = ch
@@ -252,8 +252,8 @@ class UNet(nn.Module):
         if self.ood_detection_indicator:
             for i, _t in enumerate(t):
                 if _t in self.detect_timesteps:
-                    print(h[i].detach().cpu().numpy().reshape(1,-1).shape)
-                    print(h[i].detach().cpu().numpy().reshape(1,-1))
+                    # print(h[i].detach().cpu().numpy().reshape(1,-1).shape)
+                    # print(h[i].detach().cpu().numpy().reshape(1,-1))
                     ood_pred, max_dist = self.ood_detector.detect_l2_distance_ood(h[i].detach().cpu().numpy().reshape(1,-1), _t.item())
                     self.ood_detect_res.append((ood_pred, max_dist))
         

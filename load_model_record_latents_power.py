@@ -28,24 +28,24 @@ def run_latent_all_samples(unet, loss_fn, trainloader, diffusion_model, device, 
             # print(elementwise_loss.detach().cpu().tolist())
             # print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
 
-    torch.save(unet.record_latent_features, "weight/record_latent_features_power_999_100_new.pt")
-    torch.save(related_loss, "weight/record_latent_features_loss_power_999_100_new.pt")
+    torch.save(unet.record_latent_features, "weight/record_latent_features_power_cifar10_299.pt")
+    torch.save(related_loss, "weight/record_latent_features_loss_power_cifar10_299.pt")
 
     print(f'length of record_latent_features: {np.sum([len(unet.record_latent_features[key]) for key in unet.record_latent_features.keys()])}')
 
 
 def main():
-    dataset_name = 'MNIST'
+    dataset_name = 'CIFAR10'
     batch_size = 100  # record each loss element, not mean
-    timesteps = 1000
+    timesteps = 300
 
     transform, _ = get_transforms(image_size=32)
     trainset, testset = get_dataset(dataset_name, transform)
     # trainloader, testloader = get_dataloader(trainset, testset, batch_size)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-    record_timesteps = (0,199,399,599,799,999)
-    unet = UNet(T=timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, dropout=0.1).to('cuda')
+    record_timesteps = (0,49,99,149,199,249,299)
+    unet = UNet(T=timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, dropout=0.1, in_ch=3).to('cuda')
     unet.load_state_dict(torch.load('weight/parameters_power.pkl'))
     diffusion_model = DiffusionModel(timesteps=timesteps)
     loss_fn = torch.nn.MSELoss()

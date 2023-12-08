@@ -42,6 +42,7 @@ def main():
 
     record_timesteps = (0,1,5,10,25,50,100,200,299)
     unet = UNet(input_channels=1, output_channels=1, record_latent=True).to('cuda')
+    unet.load_state_dict(torch.load('weight/parameters_power_mnist.pkl'))
     diffusion_model = DiffusionModel(timesteps=timesteps)
     loss_fn = torch.nn.MSELoss()
     unet._record_latent_features(record_timesteps=record_timesteps)

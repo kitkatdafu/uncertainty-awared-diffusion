@@ -70,7 +70,7 @@ def cla():
     parser.add_argument('--timesteps', type=int, default=500)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--no_epochs', type=int, default=100)
-    parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST'])
+    parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'CIFAR10'])
     return parser.parse_args()
 
 
@@ -88,7 +88,7 @@ def main():
     
     # unet = UNet(input_channels=1, output_channels=1).to(args.device)
     unet = UNet(T=args.timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, 
-                 dropout=0.1).to(args.device)
+                 dropout=0.1, in_ch=3).to(args.device)
     optimizer = torch.optim.AdamW(unet.parameters(), lr=args.learning_rate)
     loss_fn = torch.nn.MSELoss()
     diffusion_model = DiffusionModel(timesteps=args.timesteps)
