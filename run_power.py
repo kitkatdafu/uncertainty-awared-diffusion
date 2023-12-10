@@ -76,8 +76,8 @@ def cla():
 
 def main():
     args = cla()
-    # image_size = get_image_size(args.dataset)
-    transform, _ = get_transforms(image_size=32)
+    image_size = get_image_size(args.dataset)
+    transform, _ = get_transforms(image_size=image_size[1:])
     trainset, testset = get_dataset(args.dataset, transform)
     trainloader, testloader = get_dataloader(trainset, testset, args.batch_size)
 
@@ -88,7 +88,7 @@ def main():
     
     # unet = UNet(input_channels=1, output_channels=1).to(args.device)
     unet = UNet(T=args.timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, 
-                 dropout=0.1, in_ch=3).to(args.device)
+                 dropout=0.1, in_ch=image_size[0]).to(args.device)
     optimizer = torch.optim.AdamW(unet.parameters(), lr=args.learning_rate)
     loss_fn = torch.nn.MSELoss()
     diffusion_model = DiffusionModel(timesteps=args.timesteps)
