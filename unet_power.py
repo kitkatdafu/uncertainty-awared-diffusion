@@ -199,7 +199,7 @@ class UNet(nn.Module):
         self.tail = nn.Sequential(
             nn.GroupNorm(32, now_ch),
             Swish(),
-            nn.Conv2d(now_ch, 1, 3, stride=1, padding=1),
+            nn.Conv2d(now_ch, in_ch, 3, stride=1, padding=1),
         )
         self.initialize()
     
