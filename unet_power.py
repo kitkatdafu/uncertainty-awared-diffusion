@@ -246,15 +246,17 @@ class UNet(nn.Module):
         # recording 
         if self.record_latent:
             for i, _t in enumerate(t):
+                _t = _t.item()
                 if _t in self.record_timesteps:
-                    self.record_latent_features[_t.item()].append(h[i].detach().cpu().numpy())
+                    self.record_latent_features[_t].append(h[i].detach().cpu().numpy())
         
         if self.ood_detection_indicator:
             for i, _t in enumerate(t):
+                _t = _t.item()
                 if _t in self.detect_timesteps:
                     # print(h[i].detach().cpu().numpy().reshape(1,-1).shape)
                     # print(h[i].detach().cpu().numpy().reshape(1,-1))
-                    ood_pred, max_dist = self.ood_detector.detect_l2_distance_ood(h[i].detach().cpu().numpy().reshape(1,-1), _t.item())
+                    ood_pred, max_dist = self.ood_detector.detect_l2_distance_ood(h[i].detach().cpu().numpy().reshape(1,-1), _t)
                     self.ood_detect_res.append((ood_pred, max_dist))
         
         # upsampling

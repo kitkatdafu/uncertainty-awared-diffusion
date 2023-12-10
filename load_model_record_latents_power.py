@@ -15,9 +15,8 @@ from torch import nn
 def run_latent_all_samples(unet, loss_fn, trainloader, diffusion_model, device, batch_size, record_timesteps):
     unet.eval()
     related_loss = { key:[] for key in record_timesteps }
-    for timestep in record_timesteps:
-        tqdmr = tqdm(trainloader)
-        for batch, _ in tqdmr:
+    for timestep in tqdm(record_timesteps):
+        for batch, _ in tqdm(trainloader, leave=False):
             t = torch.full((batch_size, ), timestep).to(device)
             batch = batch.to(device)
             batch_noisy, noise = diffusion_model.forward(batch, t, device) 
@@ -37,20 +36,22 @@ def run_latent_all_samples(unet, loss_fn, trainloader, diffusion_model, device, 
 def main():
     dataset_name = 'CIFAR10'
     batch_size = 100  # record each loss element, not mean
-    timesteps = 300
+    timesteps = 2000
+    device = 'cuda'
 
-    transform, _ = get_transforms(image_size=32)
+    image_size = get_image_size(dataset_name)
+    transform, _ = get_transforms(image_size=image_size[1:])
     trainset, testset = get_dataset(dataset_name, transform)
     # trainloader, testloader = get_dataloader(trainset, testset, batch_size)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-    record_timesteps = (0,49,99,149,199,249,299)
-    unet = UNet(T=timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, dropout=0.1, in_ch=3).to('cuda')
+    record_timesteps = np.linspace(0, 2000, 20, endpoint=False).astype(int)
+    unet = UNet(T=timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, dropout=0.1, in_ch=image_size[0]).to('cuda')
     unet.load_state_dict(torch.load('weight/parameters_power.pkl'))
     diffusion_model = DiffusionModel(timesteps=timesteps)
     loss_fn = torch.nn.MSELoss()
     unet._record_latent_features(record_timesteps=record_timesteps)
-    run_latent_all_samples(unet, loss_fn, trainloader, diffusion_model, 'cuda', batch_size, record_timesteps)
+    run_latent_all_samples(unet, loss_fn, trainloader, diffusion_model, device, batch_size, record_timesteps)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ import torch
 import argparse
 import torchvision
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import matplotlib.pyplot as plt
 # from unet import UNet
 from model import DiffusionModel
@@ -89,24 +89,23 @@ class pca_ood_detector:
             return False, min_distance
 
 
-def infer_ood(unet, diffusion_model, ood_detector, device, reverse_transform, n_imgs):
+def infer_ood(unet, diffusion_model, ood_detector, device, reverse_transform, n_imgs, image_size):
 
-    detect_timesteps = (0,199,399,599,799,999)
+    detect_timesteps = np.linspace(0, 2000, 20, endpoint=False).astype(int)
     unet.eval()
     unet._start_ood_detection(ood_detector, detect_timesteps)
     
     infer_samples = []
     with torch.no_grad():
-        tqdmr = tqdm(range(n_imgs))
-        for _ in tqdmr:
+        for _ in trange(n_imgs):
             samples = []
-            image = torch.randn((1, 1, 32, 32)).to(device) * 2
+            image = torch.randn((1, *(image_size))).to(device) * 2
             for i in reversed(range(diffusion_model.timesteps)):
                 image = diffusion_model.backward(image, torch.full((1, ), i, dtype=torch.long, device=device), unet)
                 if i % 50 == 0:
                     samples.append(reverse_transform(image).cpu())
                 if i in detect_timesteps:
-                    print(unet.ood_detect_res[-1])
+                    print(unet.ood_detect_res)
             infer_samples.append(samples)
 
     return infer_samples
@@ -118,8 +117,9 @@ def cla():
     parser.add_argument('--timesteps', type=int, default=300)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--no_epochs', type=int, default=100)
-    parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST'])
+    parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'CIFAR10'])
     parser.add_argument('--thd', type=int, default=3)
+    parser.add_argument('--record_latent_features', type=str)
     return parser.parse_args()
 
 def main():
@@ -128,32 +128,31 @@ def main():
     args = cla()
 
     image_size = get_image_size(args.dataset)
-    _, reverse_transform = get_transforms(image_size=image_size)
+    _, reverse_transform = get_transforms(image_size=image_size[1:])
 
     unet = UNet(T=args.timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, 
-                 dropout=0.1).to(args.device)
+                 dropout=0.1, in_ch=image_size[0]).to(args.device)
     unet.load_state_dict(torch.load('weight/parameters_power.pkl'))
     diffusion_model = DiffusionModel(timesteps=args.timesteps)
 
-    record_latent_features = torch.load('./weight/record_latent_features_power_999_100.pt')
+    record_latent_features = torch.load(f'./weight/record_latent_features_power_{args.dataset.lower()}_{args.record_latent_features}.pt')
 
-    if os.path.exists(f'./results/stored_detector_power_999_100_{args.thd}.pkl'):
-        with open(f'./results/stored_detector_power_999_100_{args.thd}.pkl', 'rb') as file:
-            loaded_object = pickle.load(file)
-        # detector = torch.load(f'./results/stored_detector_{args.thd}.pt')
+    detector = None
+    if os.path.exists(f'./results/stored_detector_power_{args.dataset.lower()}_{args.record_latent_features}_{args.thd}.pkl'):
+        with open(f'./results/stored_detector_power_{args.dataset.lower()}_{args.record_latent_features}_{args.thd}.pkl', 'rb') as file:
+            detector = pickle.load(file)
     else:
         detector = pca_ood_detector(record_latent_features)
         detector.pca_analyze()
         detector.calc_avg_distance()
         detector.set_threshold(args.thd)
-        with open(f'./results/stored_detector_power_999_100_{args.thd}.pkl', 'wb') as file:
+        with open(f'./results/stored_detector_power_{args.dataset.lower()}_{args.record_latent_features}_{args.thd}.pkl', 'wb') as file:
             pickle.dump(detector, file)
-        # torch.save(detector, f'./results/stored_detector_{args.thd}.pt')
     
-    infer_samples = infer_ood(unet, diffusion_model, detector, args.device, reverse_transform,args.n_imgs)
+    infer_samples = infer_ood(unet, diffusion_model, detector, args.device, reverse_transform,args.n_imgs, image_size)
     ood_detect_result = unet.ood_detect_res
 
-    torch.save((infer_samples, ood_detect_result), f'./results/test_ood_detection_power_999_100_{args.thd}.pt')
+    torch.save((infer_samples, ood_detect_result), f'./results/test_ood_detection_power_{args.dataset.lower()}_{args.record_latent_features}_{args.thd}.pt')
 
 if __name__ == '__main__':
     main()
