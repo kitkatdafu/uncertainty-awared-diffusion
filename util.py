@@ -38,7 +38,7 @@ def get_ramya():
     
 def get_image_size(name):
     if name == 'MNIST':
-        return (28, 28)
+        return (1, 28, 28)
     elif name == 'CIFAR10':
         return (3, 32, 32)
     else:
