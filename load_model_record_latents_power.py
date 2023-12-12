@@ -36,7 +36,7 @@ def run_latent_all_samples(unet, loss_fn, trainloader, diffusion_model, device, 
 def main():
     dataset_name = 'CIFAR10'
     batch_size = 100  # record each loss element, not mean
-    timesteps = 2000
+    timesteps = 1000
     device = 'cuda'
 
     image_size = get_image_size(dataset_name)
@@ -45,7 +45,7 @@ def main():
     # trainloader, testloader = get_dataloader(trainset, testset, batch_size)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-    record_timesteps = np.linspace(0, 2000, 20, endpoint=False).astype(int)
+    record_timesteps = np.linspace(0, 1000, 10, endpoint=False).astype(int)
     unet = UNet(T=timesteps, ch=32, ch_mult=[1,2,2,2], attn=[1], num_res_blocks=2, dropout=0.1, in_ch=image_size[0]).to('cuda')
     unet.load_state_dict(torch.load('weight/parameters_power.pkl'))
     diffusion_model = DiffusionModel(timesteps=timesteps)

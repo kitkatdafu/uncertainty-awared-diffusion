@@ -82,16 +82,16 @@ class pca_ood_detector:
         l2_distances = np.linalg.norm(self.pca_projected_latents[timestep] - projected_latent, axis=1)
         min_distance = np.min(l2_distances)
         if min_distance > self.thresholds[timestep]:
-            print('ood sample!')
+            # print('ood sample!')
             return True, min_distance
         else:
-            print('id sample!')
+            # print('id sample!')
             return False, min_distance
 
 
 def infer_ood(unet, diffusion_model, ood_detector, device, reverse_transform, n_imgs, image_size):
 
-    detect_timesteps = np.linspace(0, 2000, 20, endpoint=False).astype(int)
+    detect_timesteps = np.linspace(0, 1000, 10, endpoint=False).astype(int)
     unet.eval()
     unet._start_ood_detection(ood_detector, detect_timesteps)
     
@@ -99,22 +99,18 @@ def infer_ood(unet, diffusion_model, ood_detector, device, reverse_transform, n_
     with torch.no_grad():
         for _ in trange(n_imgs):
             samples = []
-            image = torch.randn((1, *(image_size))).to(device) * 2
+            image = torch.randn((1, *(image_size))).to(device) * 1.5
             for i in reversed(range(diffusion_model.timesteps)):
                 image = diffusion_model.backward(image, torch.full((1, ), i, dtype=torch.long, device=device), unet)
-                if i % 50 == 0:
-                    samples.append(reverse_transform(image).cpu())
-                if i in detect_timesteps:
-                    print(unet.ood_detect_res)
+                samples.append(reverse_transform(torch.permute(image[0], (1, 2, 0))).to(torch.uint8).cpu())
             infer_samples.append(samples)
-
     return infer_samples
 
 def cla():
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_imgs', type=int, default=100)
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'mps'])
-    parser.add_argument('--timesteps', type=int, default=300)
+    parser.add_argument('--timesteps', type=int, default=1000)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--no_epochs', type=int, default=100)
     parser.add_argument('--dataset', type=str, default='MNIST', choices=['MNIST', 'CIFAR10'])
@@ -148,7 +144,7 @@ def main():
         detector.set_threshold(args.thd)
         with open(f'./results/stored_detector_power_{args.dataset.lower()}_{args.record_latent_features}_{args.thd}.pkl', 'wb') as file:
             pickle.dump(detector, file)
-    
+
     infer_samples = infer_ood(unet, diffusion_model, detector, args.device, reverse_transform,args.n_imgs, image_size)
     ood_detect_result = unet.ood_detect_res
 
